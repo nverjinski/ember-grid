@@ -1,4 +1,4 @@
-export const CELL_VALUE_MAX = 1_000
+export const NORMALIZED_INDEX_MAX = 1_000
 
 export interface GridDimensions {
   width: number
@@ -7,19 +7,19 @@ export interface GridDimensions {
 
 /**
  * Integer storage makes state straightforward to clamp, compare, and hash.
- * Normalized values use 0–1000; temperature uses tenths of a degree Celsius.
+ * Property names include their unit or identify explicitly normalized indexes.
  */
 export interface CellBuffer {
-  /** Remaining burnable material, normalized to 0–1000. */
-  fuel: Uint16Array
-  /** Water content, normalized to 0–1000. */
-  moisture: Uint16Array
+  /** Remaining burnable material in grams per square meter. */
+  fuelLoadGramsPerSquareMeter: Uint16Array
+  /** Water mass relative to dry fuel mass; 1000 means 100%. */
+  fuelMoisturePermille: Uint16Array
   /** Temperature in tenths of a degree Celsius. */
-  temperature: Int16Array
-  /** Smoke density, normalized to 0–1000. */
-  smoke: Uint16Array
-  /** Active fire intensity, normalized to 0–1000. */
-  fireIntensity: Uint16Array
+  temperatureDeciCelsius: Int16Array
+  /** Stylized smoke density index from 0–1000. */
+  smokeDensityIndex: Uint16Array
+  /** Stylized active-fire intensity index from 0–1000. */
+  fireIntensityIndex: Uint16Array
 }
 
 export const SENSOR_KINDS = ['temperature', 'smoke', 'moisture'] as const
@@ -50,8 +50,8 @@ export type WindDirection = (typeof WIND_DIRECTIONS)[number]
 
 export interface WindState {
   direction: WindDirection
-  /** Wind strength normalized to 0–1000. */
-  strength: number
+  /** Wind speed in centimeters per second. */
+  speedCentimetersPerSecond: number
 }
 
 export interface WorldState {

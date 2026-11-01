@@ -22,11 +22,11 @@ export function createCellBuffer(cellCount: number): CellBuffer {
   assertPositiveInteger('cellCount', cellCount)
 
   return {
-    fuel: new Uint16Array(cellCount),
-    moisture: new Uint16Array(cellCount),
-    temperature: new Int16Array(cellCount),
-    smoke: new Uint16Array(cellCount),
-    fireIntensity: new Uint16Array(cellCount),
+    fuelLoadGramsPerSquareMeter: new Uint16Array(cellCount),
+    fuelMoisturePermille: new Uint16Array(cellCount),
+    temperatureDeciCelsius: new Int16Array(cellCount),
+    smokeDensityIndex: new Uint16Array(cellCount),
+    fireIntensityIndex: new Uint16Array(cellCount),
   }
 }
 
@@ -39,7 +39,7 @@ export function createEmptyWorld(dimensions: GridDimensions): WorldState {
     tick: 0,
     wind: {
       direction: 'north',
-      strength: 0,
+      speedCentimetersPerSecond: 0,
     },
     sensors: [],
     current: createCellBuffer(cellCount),

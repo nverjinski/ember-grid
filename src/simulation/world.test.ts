@@ -14,14 +14,16 @@ describe('world model', () => {
     expect(world.sensors).toEqual([])
 
     for (const buffer of [world.current, world.next]) {
-      expect(buffer.fuel).toHaveLength(6)
-      expect(buffer.moisture).toHaveLength(6)
-      expect(buffer.temperature).toHaveLength(6)
-      expect(buffer.smoke).toHaveLength(6)
-      expect(buffer.fireIntensity).toHaveLength(6)
+      expect(buffer.fuelLoadGramsPerSquareMeter).toHaveLength(6)
+      expect(buffer.fuelMoisturePermille).toHaveLength(6)
+      expect(buffer.temperatureDeciCelsius).toHaveLength(6)
+      expect(buffer.smokeDensityIndex).toHaveLength(6)
+      expect(buffer.fireIntensityIndex).toHaveLength(6)
     }
 
-    expect(world.current.fuel).not.toBe(world.next.fuel)
+    expect(world.current.fuelLoadGramsPerSquareMeter).not.toBe(
+      world.next.fuelLoadGramsPerSquareMeter,
+    )
   })
 
   it('maps coordinates to stable row-major IDs', () => {

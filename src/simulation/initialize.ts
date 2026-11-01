@@ -1,6 +1,5 @@
 import { createSeededRandom, type SeededRandom } from './random'
 import {
-  CELL_VALUE_MAX,
   SENSOR_KINDS,
   WIND_DIRECTIONS,
   type GridDimensions,
@@ -56,18 +55,23 @@ export function createInitializedWorld(
   const random = createSeededRandom(initialization.seed)
 
   for (let cellId = 0; cellId < world.cellCount; cellId += 1) {
-    world.current.fuel[cellId] = random.integer(600, CELL_VALUE_MAX + 1)
-    world.current.moisture[cellId] = random.integer(150, 751)
-    world.current.temperature[cellId] = random.integer(150, 351)
+    world.current.fuelLoadGramsPerSquareMeter[cellId] = random.integer(
+      600,
+      1_001,
+    )
+    world.current.fuelMoisturePermille[cellId] = random.integer(150, 751)
+    world.current.temperatureDeciCelsius[cellId] = random.integer(150, 351)
   }
 
-  world.next.fuel.set(world.current.fuel)
-  world.next.moisture.set(world.current.moisture)
-  world.next.temperature.set(world.current.temperature)
+  world.next.fuelLoadGramsPerSquareMeter.set(
+    world.current.fuelLoadGramsPerSquareMeter,
+  )
+  world.next.fuelMoisturePermille.set(world.current.fuelMoisturePermille)
+  world.next.temperatureDeciCelsius.set(world.current.temperatureDeciCelsius)
 
   world.wind = {
     direction: WIND_DIRECTIONS[random.integer(0, WIND_DIRECTIONS.length)],
-    strength: random.integer(100, 501),
+    speedCentimetersPerSecond: random.integer(100, 501),
   }
   world.sensors = createSensors(
     random,
