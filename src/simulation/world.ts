@@ -22,7 +22,7 @@ export function createCellBuffer(cellCount: number): CellBuffer {
   assertPositiveInteger('cellCount', cellCount)
 
   return {
-    fuelLoadGramsPerSquareMeter: new Uint16Array(cellCount),
+    surfaceFuelLoadGramsPerSquareMeter: new Uint16Array(cellCount),
     fuelMoisturePermille: new Uint16Array(cellCount),
     temperatureDeciCelsius: new Int16Array(cellCount),
     smokeDensityIndex: new Uint16Array(cellCount),
@@ -42,6 +42,9 @@ export function createEmptyWorld(dimensions: GridDimensions): WorldState {
       speedCentimetersPerSecond: 0,
     },
     sensors: [],
+    terrain: {
+      fuelBedCode: new Uint8Array(cellCount),
+    },
     current: createCellBuffer(cellCount),
     next: createCellBuffer(cellCount),
   }

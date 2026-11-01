@@ -11,7 +11,7 @@ export interface GridDimensions {
  */
 export interface CellBuffer {
   /** Remaining burnable material in grams per square meter. */
-  fuelLoadGramsPerSquareMeter: Uint16Array
+  surfaceFuelLoadGramsPerSquareMeter: Uint16Array
   /** Water mass relative to dry fuel mass; 1000 means 100%. */
   fuelMoisturePermille: Uint16Array
   /** Temperature in tenths of a degree Celsius. */
@@ -20,6 +20,11 @@ export interface CellBuffer {
   smokeDensityIndex: Uint16Array
   /** Stylized active-fire intensity index from 0–1000. */
   fireIntensityIndex: Uint16Array
+}
+
+export interface TerrainBuffer {
+  /** Numeric codes index the immutable fuel-bed profile table. */
+  fuelBedCode: Uint8Array
 }
 
 export const SENSOR_KINDS = ['temperature', 'smoke', 'moisture'] as const
@@ -60,6 +65,7 @@ export interface WorldState {
   tick: number
   wind: WindState
   sensors: SensorState[]
+  terrain: TerrainBuffer
   current: CellBuffer
   next: CellBuffer
 }

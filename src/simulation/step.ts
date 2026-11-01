@@ -6,9 +6,33 @@ import {
 
 export const SIMULATION_TICK_MILLISECONDS = 100
 
+const PERMILLE_SCALE = 1_000
+const INT16_MINIMUM = -32_768
 const AMBIENT_TEMPERATURE_DECI_CELSIUS = 200
 const MAX_TEMPERATURE_DECI_CELSIUS = 12_000
-const IGNITION_THRESHOLD = 100
+
+const FIRE_RULES = {
+  // Neighbor exposure is weaker across diagonals because they are farther away.
+  cardinalNeighborExposureDivisor: 8,
+  diagonalNeighborExposureDivisor: 12,
+
+  // A 10 m/s wind adds 100% exposure downwind and removes it upwind.
+  windSpeedForFullExposureAdjustmentCentimetersPerSecond: 1_000,
+
+  ignitionPotentialThreshold: 100,
+  ignitionIntensityMultiplier: 2,
+
+  // Per-tick rates; each tick represents SIMULATION_TICK_MILLISECONDS.
+  fireIntensityPointsPerGramOfFuelConsumed: 50,
+  fireIntensityPointsPerMoisturePermilleEvaporated: 100,
+  dryFuelGramsPerCombustionSupportPoint: 20,
+  neighborExposurePerCombustionSupportPoint: 16,
+  fireIntensityDecayPoints: 25,
+  fireIntensityPointsPerSmokePointGenerated: 25,
+  smokePointsPerDispersedPoint: 40,
+  heatSourcePointsPerDeciCelsiusGained: 20,
+  ambientCoolingDifferenceDivisor: 50,
+} as const
 
 const WIND_VECTORS: Record<WindDirection, readonly [number, number]> = {
   north: [0, -1],
@@ -25,6 +49,10 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
 }
 
+function scaleByPermille(value: number, factorPermille: number): number {
+  return Math.floor((value * factorPermille) / PERMILLE_SCALE)
+}
+
 function windFactorPermille(
   offsetX: number,
   offsetY: number,
@@ -33,16 +61,20 @@ function windFactorPermille(
 ): number {
   const [windX, windY] = WIND_VECTORS[direction]
   const alignment = offsetX * windX + offsetY * windY
+  const windAdjustmentPermille = Math.floor(
+    (speedCentimetersPerSecond * PERMILLE_SCALE) /
+      FIRE_RULES.windSpeedForFullExposureAdjustmentCentimetersPerSecond,
+  )
 
   if (alignment > 0) {
-    return 1_000 + speedCentimetersPerSecond
+    return PERMILLE_SCALE + windAdjustmentPermille
   }
 
   if (alignment < 0) {
-    return Math.max(0, 1_000 - speedCentimetersPerSecond)
+    return Math.max(0, PERMILLE_SCALE - windAdjustmentPermille)
   }
 
-  return 1_000
+  return PERMILLE_SCALE
 }
 
 function neighborFireExposure(
@@ -67,7 +99,10 @@ function neighborFireExposure(
 
       const sourceId = sourceY * width + sourceX
       const sourceFire = world.current.fireIntensityIndex[sourceId]
-      const distanceDivisor = offsetX !== 0 && offsetY !== 0 ? 12 : 8
+      const distanceDivisor =
+        offsetX !== 0 && offsetY !== 0
+          ? FIRE_RULES.diagonalNeighborExposureDivisor
+          : FIRE_RULES.cardinalNeighborExposureDivisor
       const baseExposure = Math.floor(sourceFire / distanceDivisor)
       const windFactor = windFactorPermille(
         offsetX,
@@ -76,7 +111,7 @@ function neighborFireExposure(
         world.wind.speedCentimetersPerSecond,
       )
 
-      exposure += Math.floor((baseExposure * windFactor) / 1_000)
+      exposure += scaleByPermille(baseExposure, windFactor)
     }
   }
 
@@ -90,7 +125,12 @@ function coolTowardAmbient(temperatureDeciCelsius: number): number {
 
   const difference =
     AMBIENT_TEMPERATURE_DECI_CELSIUS - temperatureDeciCelsius
-  const change = Math.max(1, Math.floor(Math.abs(difference) / 50))
+  const change = Math.max(
+    1,
+    Math.floor(
+      Math.abs(difference) / FIRE_RULES.ambientCoolingDifferenceDivisor,
+    ),
+  )
 
   return temperatureDeciCelsius + Math.sign(difference) * change
 }
@@ -102,43 +142,74 @@ export function stepWorld(world: WorldState): void {
   for (let cellId = 0; cellId < world.cellCount; cellId += 1) {
     const x = cellId % width
     const y = Math.floor(cellId / width)
-    const fuelLoad = world.current.fuelLoadGramsPerSquareMeter[cellId]
+    const surfaceFuelLoad =
+      world.current.surfaceFuelLoadGramsPerSquareMeter[cellId]
     const moisture = world.current.fuelMoisturePermille[cellId]
     const temperature = world.current.temperatureDeciCelsius[cellId]
     const smoke = world.current.smokeDensityIndex[cellId]
     const fire = world.current.fireIntensityIndex[cellId]
     const exposure = neighborFireExposure(world, x, y)
-    const drynessPermille = clamp(1_000 - moisture, 0, 1_000)
-    const fuelFactorPermille = clamp(fuelLoad, 0, 1_000)
-    const ignitionPotential = Math.floor(
-      (exposure * drynessPermille * fuelFactorPermille) / 1_000_000,
+    const drynessPermille = clamp(
+      PERMILLE_SCALE - moisture,
+      0,
+      PERMILLE_SCALE,
     )
+    const ignitionPotential = scaleByPermille(exposure, drynessPermille)
 
-    const consumedFuel = Math.min(fuelLoad, Math.ceil(fire / 50))
-    const evaporatedMoisture = Math.min(moisture, Math.ceil(fire / 100))
-    const nextFuelLoad = fuelLoad - consumedFuel
+    const consumedFuel = Math.min(
+      surfaceFuelLoad,
+      Math.ceil(
+        fire / FIRE_RULES.fireIntensityPointsPerGramOfFuelConsumed,
+      ),
+    )
+    const evaporatedMoisture = Math.min(
+      moisture,
+      Math.ceil(
+        fire /
+          FIRE_RULES.fireIntensityPointsPerMoisturePermilleEvaporated,
+      ),
+    )
+    const nextSurfaceFuelLoad = surfaceFuelLoad - consumedFuel
     const nextMoisture = moisture - evaporatedMoisture
 
     let nextFire = 0
-    if (nextFuelLoad > 0 && fire > 0) {
+    if (nextSurfaceFuelLoad > 0 && fire > 0) {
+      const effectiveDryFuelLoad = scaleByPermille(
+        nextSurfaceFuelLoad,
+        drynessPermille,
+      )
       const combustionSupport = Math.floor(
-        (nextFuelLoad * drynessPermille) / 20_000,
+        effectiveDryFuelLoad /
+          FIRE_RULES.dryFuelGramsPerCombustionSupportPoint,
       )
       nextFire = clamp(
-        fire + combustionSupport + Math.floor(exposure / 16) - 25,
+        fire +
+          combustionSupport +
+          Math.floor(
+            exposure /
+              FIRE_RULES.neighborExposurePerCombustionSupportPoint,
+          ) -
+          FIRE_RULES.fireIntensityDecayPoints,
         0,
         NORMALIZED_INDEX_MAX,
       )
-    } else if (nextFuelLoad > 0 && ignitionPotential >= IGNITION_THRESHOLD) {
+    } else if (
+      nextSurfaceFuelLoad > 0 &&
+      ignitionPotential >= FIRE_RULES.ignitionPotentialThreshold
+    ) {
       nextFire = clamp(
-        ignitionPotential * 2,
+        ignitionPotential * FIRE_RULES.ignitionIntensityMultiplier,
         0,
         NORMALIZED_INDEX_MAX,
       )
     }
 
-    const generatedSmoke = Math.ceil(fire / 25)
-    const dispersedSmoke = Math.floor(smoke / 40)
+    const generatedSmoke = Math.ceil(
+      fire / FIRE_RULES.fireIntensityPointsPerSmokePointGenerated,
+    )
+    const dispersedSmoke = Math.floor(
+      smoke / FIRE_RULES.smokePointsPerDispersedPoint,
+    )
     const nextSmoke = clamp(
       smoke + generatedSmoke - dispersedSmoke,
       0,
@@ -148,13 +219,18 @@ export function stepWorld(world: WorldState): void {
     const nextTemperature =
       fire > 0 || exposure > 0
         ? clamp(
-            temperature + Math.ceil((fire + exposure) / 20),
-            -32_768,
+            temperature +
+              Math.ceil(
+                (fire + exposure) /
+                  FIRE_RULES.heatSourcePointsPerDeciCelsiusGained,
+              ),
+            INT16_MINIMUM,
             MAX_TEMPERATURE_DECI_CELSIUS,
           )
         : coolTowardAmbient(temperature)
 
-    world.next.fuelLoadGramsPerSquareMeter[cellId] = nextFuelLoad
+    world.next.surfaceFuelLoadGramsPerSquareMeter[cellId] =
+      nextSurfaceFuelLoad
     world.next.fuelMoisturePermille[cellId] = nextMoisture
     world.next.temperatureDeciCelsius[cellId] = nextTemperature
     world.next.smokeDensityIndex[cellId] = nextSmoke

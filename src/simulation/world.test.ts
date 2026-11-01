@@ -14,15 +14,16 @@ describe('world model', () => {
     expect(world.sensors).toEqual([])
 
     for (const buffer of [world.current, world.next]) {
-      expect(buffer.fuelLoadGramsPerSquareMeter).toHaveLength(6)
+      expect(buffer.surfaceFuelLoadGramsPerSquareMeter).toHaveLength(6)
       expect(buffer.fuelMoisturePermille).toHaveLength(6)
       expect(buffer.temperatureDeciCelsius).toHaveLength(6)
       expect(buffer.smokeDensityIndex).toHaveLength(6)
       expect(buffer.fireIntensityIndex).toHaveLength(6)
     }
 
-    expect(world.current.fuelLoadGramsPerSquareMeter).not.toBe(
-      world.next.fuelLoadGramsPerSquareMeter,
+    expect(world.terrain.fuelBedCode).toHaveLength(6)
+    expect(world.current.surfaceFuelLoadGramsPerSquareMeter).not.toBe(
+      world.next.surfaceFuelLoadGramsPerSquareMeter,
     )
   })
 

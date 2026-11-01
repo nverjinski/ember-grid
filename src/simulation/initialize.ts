@@ -1,3 +1,8 @@
+import {
+  FUEL_BED_PROFILES,
+  getFuelBedProfile,
+  type FuelBedCode,
+} from './fuelBeds'
 import { createSeededRandom, type SeededRandom } from './random'
 import {
   SENSOR_KINDS,
@@ -11,6 +16,44 @@ import { createEmptyWorld } from './world'
 export interface WorldInitialization extends GridDimensions {
   seed: number
   sensorCount: number
+}
+
+const TERRAIN_PATCH_SIZE = 4
+
+function selectFuelBedCode(random: SeededRandom): FuelBedCode {
+  const totalWeight = FUEL_BED_PROFILES.reduce(
+    (total, profile) => total + profile.selectionWeight,
+    0,
+  )
+  const selection = random.integer(0, totalWeight)
+  let cumulativeWeight = 0
+
+  for (const profile of FUEL_BED_PROFILES) {
+    cumulativeWeight += profile.selectionWeight
+    if (selection < cumulativeWeight) {
+      return profile.code
+    }
+  }
+
+  return FUEL_BED_PROFILES[FUEL_BED_PROFILES.length - 1].code
+}
+
+function initializeTerrain(world: WorldState, random: SeededRandom): void {
+  const { width, height } = world.dimensions
+
+  for (let patchY = 0; patchY < height; patchY += TERRAIN_PATCH_SIZE) {
+    for (let patchX = 0; patchX < width; patchX += TERRAIN_PATCH_SIZE) {
+      const fuelBedCode = selectFuelBedCode(random)
+      const endY = Math.min(patchY + TERRAIN_PATCH_SIZE, height)
+      const endX = Math.min(patchX + TERRAIN_PATCH_SIZE, width)
+
+      for (let y = patchY; y < endY; y += 1) {
+        for (let x = patchX; x < endX; x += 1) {
+          world.terrain.fuelBedCode[y * width + x] = fuelBedCode
+        }
+      }
+    }
+  }
 }
 
 function createSensors(
@@ -53,18 +96,20 @@ export function createInitializedWorld(
 ): WorldState {
   const world = createEmptyWorld(initialization)
   const random = createSeededRandom(initialization.seed)
+  initializeTerrain(world, random)
 
   for (let cellId = 0; cellId < world.cellCount; cellId += 1) {
-    world.current.fuelLoadGramsPerSquareMeter[cellId] = random.integer(
-      600,
-      1_001,
+    const profile = getFuelBedProfile(world.terrain.fuelBedCode[cellId])
+    world.current.surfaceFuelLoadGramsPerSquareMeter[cellId] = random.integer(
+      profile.minimumSurfaceFuelLoadGramsPerSquareMeter,
+      profile.maximumSurfaceFuelLoadGramsPerSquareMeter + 1,
     )
     world.current.fuelMoisturePermille[cellId] = random.integer(150, 751)
     world.current.temperatureDeciCelsius[cellId] = random.integer(150, 351)
   }
 
-  world.next.fuelLoadGramsPerSquareMeter.set(
-    world.current.fuelLoadGramsPerSquareMeter,
+  world.next.surfaceFuelLoadGramsPerSquareMeter.set(
+    world.current.surfaceFuelLoadGramsPerSquareMeter,
   )
   world.next.fuelMoisturePermille.set(world.current.fuelMoisturePermille)
   world.next.temperatureDeciCelsius.set(world.current.temperatureDeciCelsius)

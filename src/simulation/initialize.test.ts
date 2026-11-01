@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getFuelBedProfile } from './fuelBeds'
 import { createInitializedWorld } from './initialize'
 
 const initialization = {
@@ -15,8 +16,9 @@ describe('createInitializedWorld', () => {
 
     expect(first.wind).toEqual(second.wind)
     expect(first.sensors).toEqual(second.sensors)
-    expect(first.current.fuelLoadGramsPerSquareMeter).toEqual(
-      second.current.fuelLoadGramsPerSquareMeter,
+    expect(first.terrain.fuelBedCode).toEqual(second.terrain.fuelBedCode)
+    expect(first.current.surfaceFuelLoadGramsPerSquareMeter).toEqual(
+      second.current.surfaceFuelLoadGramsPerSquareMeter,
     )
     expect(first.current.fuelMoisturePermille).toEqual(
       second.current.fuelMoisturePermille,
@@ -30,8 +32,8 @@ describe('createInitializedWorld', () => {
     const first = createInitializedWorld(initialization)
     const second = createInitializedWorld({ ...initialization, seed: 43 })
 
-    expect(first.current.fuelLoadGramsPerSquareMeter).not.toEqual(
-      second.current.fuelLoadGramsPerSquareMeter,
+    expect(first.current.surfaceFuelLoadGramsPerSquareMeter).not.toEqual(
+      second.current.surfaceFuelLoadGramsPerSquareMeter,
     )
   })
 
@@ -39,8 +41,14 @@ describe('createInitializedWorld', () => {
     const world = createInitializedWorld(initialization)
 
     expect(
-      [...world.current.fuelLoadGramsPerSquareMeter].every(
-        (value) => value >= 600 && value <= 1_000,
+      [...world.current.surfaceFuelLoadGramsPerSquareMeter].every(
+        (value, cellId) => {
+          const profile = getFuelBedProfile(world.terrain.fuelBedCode[cellId])
+          return (
+            value >= profile.minimumSurfaceFuelLoadGramsPerSquareMeter &&
+            value <= profile.maximumSurfaceFuelLoadGramsPerSquareMeter
+          )
+        },
       ),
     ).toBe(true)
     expect(
@@ -54,8 +62,8 @@ describe('createInitializedWorld', () => {
       ),
     ).toBe(true)
 
-    expect(world.next.fuelLoadGramsPerSquareMeter).toEqual(
-      world.current.fuelLoadGramsPerSquareMeter,
+    expect(world.next.surfaceFuelLoadGramsPerSquareMeter).toEqual(
+      world.current.surfaceFuelLoadGramsPerSquareMeter,
     )
     expect(world.next.fuelMoisturePermille).toEqual(
       world.current.fuelMoisturePermille,

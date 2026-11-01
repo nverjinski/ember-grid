@@ -4,11 +4,11 @@ import { createEmptyWorld, getCellId } from './world'
 
 function createTestWorld() {
   const world = createEmptyWorld({ width: 3, height: 3 })
-  world.current.fuelLoadGramsPerSquareMeter.fill(800)
+  world.current.surfaceFuelLoadGramsPerSquareMeter.fill(800)
   world.current.fuelMoisturePermille.fill(200)
   world.current.temperatureDeciCelsius.fill(200)
-  world.next.fuelLoadGramsPerSquareMeter.set(
-    world.current.fuelLoadGramsPerSquareMeter,
+  world.next.surfaceFuelLoadGramsPerSquareMeter.set(
+    world.current.surfaceFuelLoadGramsPerSquareMeter,
   )
   world.next.fuelMoisturePermille.set(world.current.fuelMoisturePermille)
   world.next.temperatureDeciCelsius.set(world.current.temperatureDeciCelsius)
@@ -35,12 +35,30 @@ describe('stepWorld', () => {
 
     stepWorld(world)
 
-    expect(world.current.fuelLoadGramsPerSquareMeter[centerId]).toBeLessThan(
-      800,
-    )
+    expect(
+      world.current.surfaceFuelLoadGramsPerSquareMeter[centerId],
+    ).toBeLessThan(800)
     expect(world.current.fuelMoisturePermille[centerId]).toBeLessThan(200)
     expect(world.current.temperatureDeciCelsius[centerId]).toBeGreaterThan(200)
     expect(world.current.smokeDensityIndex[centerId]).toBeGreaterThan(0)
+  })
+
+  it('preserves the calibrated one-tick baseline', () => {
+    const world = createTestWorld()
+    const centerId = getCellId(world.dimensions, 1, 1)
+    const eastId = getCellId(world.dimensions, 2, 1)
+    const southEastId = getCellId(world.dimensions, 2, 2)
+    world.current.fireIntensityIndex[centerId] = 1_000
+
+    stepWorld(world)
+
+    expect(world.current.surfaceFuelLoadGramsPerSquareMeter[centerId]).toBe(780)
+    expect(world.current.fuelMoisturePermille[centerId]).toBe(190)
+    expect(world.current.temperatureDeciCelsius[centerId]).toBe(250)
+    expect(world.current.smokeDensityIndex[centerId]).toBe(40)
+    expect(world.current.fireIntensityIndex[centerId]).toBe(1_000)
+    expect(world.current.fireIntensityIndex[eastId]).toBe(200)
+    expect(world.current.fireIntensityIndex[southEastId]).toBe(0)
   })
 
   it('spreads more strongly downwind than upwind', () => {
