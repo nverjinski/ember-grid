@@ -6,7 +6,7 @@ The project preserves each implementation strategy as a selectable comparison po
 
 ## Project status
 
-Phase 0 is complete and establishes the repository and benchmark contract. The simulation, telemetry pipeline, renderer comparisons, workers, and production deployment are deliberately deferred to later phases in [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
+Phases 0 and 1 are complete. The repository now includes the benchmark contract and a deterministic wildfire-response simulation with a minimal interactive grid. Telemetry delivery, renderer comparisons, workers, and production deployment remain deferred to later phases in [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
 
 Current foundation:
 
@@ -15,6 +15,10 @@ Current foundation:
 - ESLint and Vitest quality gates
 - canonical experiment-configuration serialization
 - documented benchmark methodology and performance budgets
+- seeded terrain, fuel-bed, environmental, and sensor initialization
+- a fixed-step, double-buffered fire simulation with scheduled scenario events
+- authoritative state checksums and golden fixtures for two seeds
+- a minimal play, pause, step, reset, and jump-to-tick interface
 
 TypeScript 7 provides the native `tsc` build compiler. The TypeScript 6 compatibility package is installed alongside it so API-dependent tooling such as `typescript-eslint` can operate during the TypeScript 7 transition.
 

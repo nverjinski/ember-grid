@@ -4,8 +4,12 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    // Keep React Compiler's runtime and React DOM on the same dispatcher.
+    dedupe: ['react', 'react-dom'],
+  },
   plugins: [
     react(),
-    babel({ presets: [reactCompilerPreset()] })
+    babel({ presets: [reactCompilerPreset()] }),
   ],
 })
