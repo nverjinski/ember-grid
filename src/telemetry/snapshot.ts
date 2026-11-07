@@ -1,20 +1,15 @@
 import { checksumWorld } from '../simulation/checksum'
 import type { WorldState } from '../simulation/types'
 import {
+  assertValidMessageMetadataV1,
+  type TelemetryMessageMetadataV1,
+} from './messageMetadata'
+import {
   TELEMETRY_PROTOCOL_VERSION,
   type SnapshotMessageV1,
 } from './protocol'
 
-export interface SnapshotMessageMetadataV1 {
-  sequenceNumber: number
-  scheduledDeliveryTimeMilliseconds: number
-}
-
-function assertNonNegativeSafeInteger(name: string, value: number): void {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new RangeError(`${name} must be a non-negative safe integer`)
-  }
-}
+export type SnapshotMessageMetadataV1 = TelemetryMessageMetadataV1
 
 /**
  * Copies authoritative simulation state into a JSON-safe protocol snapshot.
@@ -24,11 +19,7 @@ export function createSnapshotMessageV1(
   world: WorldState,
   metadata: SnapshotMessageMetadataV1,
 ): SnapshotMessageV1 {
-  assertNonNegativeSafeInteger('sequenceNumber', metadata.sequenceNumber)
-  assertNonNegativeSafeInteger(
-    'scheduledDeliveryTimeMilliseconds',
-    metadata.scheduledDeliveryTimeMilliseconds,
-  )
+  assertValidMessageMetadataV1(metadata)
 
   const cells = Array.from({ length: world.cellCount }, (_, cellId) => ({
     cellId,
