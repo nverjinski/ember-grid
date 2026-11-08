@@ -1,20 +1,18 @@
 import { checksumWorld } from "../simulation/checksum";
 import type { WorldState } from "../simulation/types";
-import {
-  assertValidMessageMetadataV1,
-  type TelemetryMessageMetadataV1,
-} from "./messageMetadata";
 import type {
   CellUpdateV1,
-  DeltaMessageV1,
   EntityUpdateV1,
   SensorUpdateV1,
   WindUpdateV1,
   WorldSnapshotV1,
 } from "./protocol";
-import { TELEMETRY_PROTOCOL_VERSION } from "./protocol";
 
-export type DeltaMessageMetadataV1 = TelemetryMessageMetadataV1;
+export interface TickChangeSetV1 {
+  simulationTick: number;
+  authoritativeWorldChecksum: string;
+  updates: readonly EntityUpdateV1[];
+}
 
 function assertCompatibleGrid(
   previousSnapshot: WorldSnapshotV1,
@@ -158,14 +156,11 @@ export function collectWindUpdateV1(
   return undefined;
 }
 
-/** Builds one protocol delta from a detached previous snapshot and current world. */
-export function createDeltaMessageV1(
+/** Collects one tick's logical changes without choosing message boundaries. */
+export function createTickChangeSetV1(
   previousSnapshot: WorldSnapshotV1,
   currentWorld: WorldState,
-  metadata: DeltaMessageMetadataV1,
-): DeltaMessageV1 {
-  assertValidMessageMetadataV1(metadata);
-
+): TickChangeSetV1 {
   const cellUpdates = collectCellUpdatesV1(previousSnapshot, currentWorld);
   const sensorUpdates = collectSensorUpdatesV1(previousSnapshot, currentWorld);
   const windUpdate = collectWindUpdateV1(previousSnapshot, currentWorld);
@@ -174,13 +169,8 @@ export function createDeltaMessageV1(
   if (windUpdate !== undefined) updates.push(windUpdate);
 
   return {
-    protocolVersion: TELEMETRY_PROTOCOL_VERSION,
-    sequenceNumber: metadata.sequenceNumber,
     simulationTick: currentWorld.tick,
-    scheduledDeliveryTimeMilliseconds:
-      metadata.scheduledDeliveryTimeMilliseconds,
     authoritativeWorldChecksum: checksumWorld(currentWorld),
-    kind: "delta",
     updates,
   };
 }

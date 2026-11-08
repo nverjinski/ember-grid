@@ -7,7 +7,7 @@ import {
   collectCellUpdatesV1,
   collectSensorUpdatesV1,
   collectWindUpdateV1,
-  createDeltaMessageV1,
+  createTickChangeSetV1,
 } from './delta'
 import { createSnapshotMessageV1 } from './snapshot'
 
@@ -244,8 +244,8 @@ describe('wind delta generation', () => {
   })
 })
 
-describe('delta message assembly', () => {
-  it('builds a header from message metadata and current authoritative state', () => {
+describe('tick change-set assembly', () => {
+  it('records the current authoritative tick and checksum', () => {
     const world = createInitializedWorld({
       width: 2,
       height: 2,
@@ -256,17 +256,10 @@ describe('delta message assembly', () => {
     world.tick = 7
 
     expect(
-      createDeltaMessageV1(previousSnapshot, world, {
-        sequenceNumber: 4,
-        scheduledDeliveryTimeMilliseconds: 700,
-      }),
+      createTickChangeSetV1(previousSnapshot, world),
     ).toEqual({
-      protocolVersion: 1,
-      sequenceNumber: 4,
       simulationTick: 7,
-      scheduledDeliveryTimeMilliseconds: 700,
       authoritativeWorldChecksum: checksumWorld(world),
-      kind: 'delta',
       updates: [],
     })
   })
@@ -286,12 +279,9 @@ describe('delta message assembly', () => {
     world.wind.direction =
       world.wind.direction === 'north' ? 'south' : 'north'
 
-    const message = createDeltaMessageV1(previousSnapshot, world, {
-      sequenceNumber: 1,
-      scheduledDeliveryTimeMilliseconds: 100,
-    })
+    const changeSet = createTickChangeSetV1(previousSnapshot, world)
 
-    expect(message.updates).toEqual([
+    expect(changeSet.updates).toEqual([
       expectedCellUpdate(world, 1),
       expectedCellUpdate(world, 3),
       expectedSensorUpdate(world, 1),
@@ -303,27 +293,5 @@ describe('delta message assembly', () => {
     ])
   })
 
-  it('rejects invalid sequence and delivery metadata', () => {
-    const world = createInitializedWorld({
-      width: 1,
-      height: 1,
-      seed: 1,
-      sensorCount: 0,
-    })
-    const previousSnapshot = snapshotWorld(world)
-
-    expect(() =>
-      createDeltaMessageV1(previousSnapshot, world, {
-        sequenceNumber: -1,
-        scheduledDeliveryTimeMilliseconds: 0,
-      }),
-    ).toThrow(RangeError)
-    expect(() =>
-      createDeltaMessageV1(previousSnapshot, world, {
-        sequenceNumber: 1,
-        scheduledDeliveryTimeMilliseconds: 0.5,
-      }),
-    ).toThrow(RangeError)
-  })
 })
 
