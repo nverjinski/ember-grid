@@ -1,6 +1,6 @@
 export interface TelemetryMessageMetadataV1 {
   sequenceNumber: number
-  scheduledDeliveryTimeMilliseconds: number
+  scheduledDeliveryTimeMicroseconds: number
 }
 
 export function assertValidMessageMetadataV1(
@@ -11,11 +11,11 @@ export function assertValidMessageMetadataV1(
   }
 
   if (
-    !Number.isSafeInteger(metadata.scheduledDeliveryTimeMilliseconds) ||
-    metadata.scheduledDeliveryTimeMilliseconds < 0
+    !Number.isSafeInteger(metadata.scheduledDeliveryTimeMicroseconds) ||
+    metadata.scheduledDeliveryTimeMicroseconds < 0
   ) {
     throw new RangeError(
-      'scheduledDeliveryTimeMilliseconds must be a non-negative safe integer',
+      'scheduledDeliveryTimeMicroseconds must be a non-negative safe integer',
     )
   }
 }

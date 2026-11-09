@@ -14,7 +14,7 @@ export interface TelemetryMessageHeaderV1 {
   /** Authoritative simulation tick represented by this message. */
   simulationTick: number
   /** Intended delivery offset from replay start, never a wall-clock timestamp. */
-  scheduledDeliveryTimeMilliseconds: number
+  scheduledDeliveryTimeMicroseconds: number
   /** Checksum of authoritative state after this message's data is applied. */
   authoritativeWorldChecksum: string
 }
@@ -70,6 +70,10 @@ export type EntityUpdateV1 = CellUpdateV1 | SensorUpdateV1 | WindUpdateV1
 
 export interface DeltaMessageV1 extends TelemetryMessageHeaderV1 {
   kind: 'delta'
+  /** Zero-based position among all delta messages for this simulation tick. */
+  tickBatchIndex: number
+  /** Total delta-message count for this simulation tick. */
+  tickBatchCount: number
   updates: readonly EntityUpdateV1[]
 }
 
