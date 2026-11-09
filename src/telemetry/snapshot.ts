@@ -35,8 +35,8 @@ export function createSnapshotMessageV1(
     protocolVersion: TELEMETRY_PROTOCOL_VERSION,
     sequenceNumber: metadata.sequenceNumber,
     simulationTick: world.tick,
-    scheduledDeliveryTimeMicroseconds:
-      metadata.scheduledDeliveryTimeMicroseconds,
+    scheduledDeliveryOffsetMicroseconds:
+      metadata.scheduledDeliveryOffsetMicroseconds,
     authoritativeWorldChecksum: checksumWorld(world),
     kind: 'snapshot',
     snapshot: {
@@ -69,8 +69,8 @@ export function serializeSnapshotMessageV1(
     kind: message.kind,
     sequenceNumber: message.sequenceNumber,
     simulationTick: message.simulationTick,
-    scheduledDeliveryTimeMicroseconds:
-      message.scheduledDeliveryTimeMicroseconds,
+    scheduledDeliveryOffsetMicroseconds:
+      message.scheduledDeliveryOffsetMicroseconds,
     authoritativeWorldChecksum: message.authoritativeWorldChecksum,
     snapshot: {
       dimensions: {

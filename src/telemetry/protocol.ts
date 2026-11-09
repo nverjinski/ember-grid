@@ -14,7 +14,7 @@ export interface TelemetryMessageHeaderV1 {
   /** Authoritative simulation tick represented by this message. */
   simulationTick: number
   /** Intended delivery offset from replay start, never a wall-clock timestamp. */
-  scheduledDeliveryTimeMicroseconds: number
+  scheduledDeliveryOffsetMicroseconds: number
   /** Checksum of authoritative state after this message's data is applied. */
   authoritativeWorldChecksum: string
 }

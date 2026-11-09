@@ -10,7 +10,7 @@ const HEADER = {
   protocolVersion: TELEMETRY_PROTOCOL_VERSION,
   sequenceNumber: 0,
   simulationTick: 0,
-  scheduledDeliveryTimeMicroseconds: 0,
+  scheduledDeliveryOffsetMicroseconds: 0,
   authoritativeWorldChecksum: '0123456789abcdef',
 } as const
 
@@ -55,7 +55,7 @@ describe('telemetry protocol v1', () => {
       ...HEADER,
       sequenceNumber: 1,
       simulationTick: 1,
-      scheduledDeliveryTimeMicroseconds: 100_000,
+      scheduledDeliveryOffsetMicroseconds: 100_000,
       kind: 'delta',
       tickBatchIndex: 0,
       tickBatchCount: 1,

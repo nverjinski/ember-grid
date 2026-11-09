@@ -14,7 +14,7 @@ import { createSnapshotMessageV1 } from './snapshot'
 function snapshotWorld(world: WorldState) {
   return createSnapshotMessageV1(world, {
     sequenceNumber: 0,
-    scheduledDeliveryTimeMicroseconds: 0,
+    scheduledDeliveryOffsetMicroseconds: 0,
   }).snapshot
 }
 

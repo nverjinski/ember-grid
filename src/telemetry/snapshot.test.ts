@@ -23,7 +23,7 @@ describe('protocol v1 snapshots', () => {
 
     const message = createSnapshotMessageV1(world, {
       sequenceNumber: 0,
-      scheduledDeliveryTimeMicroseconds: 0,
+      scheduledDeliveryOffsetMicroseconds: 0,
     })
 
     world.current.surfaceFuelLoadGramsPerSquareMeter[0] = 0
@@ -65,14 +65,14 @@ describe('protocol v1 snapshots', () => {
         dimensions: { height: 1, width: 1 },
       },
       authoritativeWorldChecksum: '0123456789abcdef',
-      scheduledDeliveryTimeMicroseconds: 0,
+      scheduledDeliveryOffsetMicroseconds: 0,
       simulationTick: 0,
       sequenceNumber: 0,
       protocolVersion: TELEMETRY_PROTOCOL_VERSION,
     }
 
     expect(serializeSnapshotMessageV1(message)).toBe(
-      '{"protocolVersion":1,"kind":"snapshot","sequenceNumber":0,"simulationTick":0,"scheduledDeliveryTimeMicroseconds":0,"authoritativeWorldChecksum":"0123456789abcdef","snapshot":{"dimensions":{"width":1,"height":1},"fuelBedCodeByCellId":[0],"cells":[{"cellId":0,"surfaceFuelLoadGramsPerSquareMeter":780,"fuelMoisturePermille":120,"temperatureDeciCelsius":200,"smokeDensityIndex":0,"fireIntensityIndex":0}],"sensors":[],"wind":{"direction":"north-west","speedCentimetersPerSecond":430}}}',
+      '{"protocolVersion":1,"kind":"snapshot","sequenceNumber":0,"simulationTick":0,"scheduledDeliveryOffsetMicroseconds":0,"authoritativeWorldChecksum":"0123456789abcdef","snapshot":{"dimensions":{"width":1,"height":1},"fuelBedCodeByCellId":[0],"cells":[{"cellId":0,"surfaceFuelLoadGramsPerSquareMeter":780,"fuelMoisturePermille":120,"temperatureDeciCelsius":200,"smokeDensityIndex":0,"fireIntensityIndex":0}],"sensors":[],"wind":{"direction":"north-west","speedCentimetersPerSecond":430}}}',
     )
   })
 
@@ -85,11 +85,11 @@ describe('protocol v1 snapshots', () => {
     }
     const first = createSnapshotMessageV1(
       createInitializedWorld(initialization),
-      { sequenceNumber: 0, scheduledDeliveryTimeMicroseconds: 0 },
+      { sequenceNumber: 0, scheduledDeliveryOffsetMicroseconds: 0 },
     )
     const second = createSnapshotMessageV1(
       createInitializedWorld(initialization),
-      { sequenceNumber: 0, scheduledDeliveryTimeMicroseconds: 0 },
+      { sequenceNumber: 0, scheduledDeliveryOffsetMicroseconds: 0 },
     )
 
     expect(serializeSnapshotMessageV1(first)).toBe(
@@ -108,13 +108,13 @@ describe('protocol v1 snapshots', () => {
     expect(() =>
       createSnapshotMessageV1(world, {
         sequenceNumber: -1,
-        scheduledDeliveryTimeMicroseconds: 0,
+        scheduledDeliveryOffsetMicroseconds: 0,
       }),
     ).toThrow(RangeError)
     expect(() =>
       createSnapshotMessageV1(world, {
         sequenceNumber: 0,
-        scheduledDeliveryTimeMicroseconds: 0.5,
+        scheduledDeliveryOffsetMicroseconds: 0.5,
       }),
     ).toThrow(RangeError)
   })
