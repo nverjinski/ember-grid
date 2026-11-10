@@ -5,9 +5,6 @@ function unsupportedEntityUpdate(update: never): never {
 }
 
 function canonicalizeEntityUpdateV1(update: EntityUpdateV1): EntityUpdateV1 {
-  void update;
-  void unsupportedEntityUpdate;
-
   switch (update.entityType) {
     case "cell":
       return {
@@ -35,7 +32,7 @@ function canonicalizeEntityUpdateV1(update: EntityUpdateV1): EntityUpdateV1 {
         speedCentimetersPerSecond: update.speedCentimetersPerSecond,
       };
     default:
-      unsupportedEntityUpdate(update);
+      return unsupportedEntityUpdate(update);
   }
 }
 
