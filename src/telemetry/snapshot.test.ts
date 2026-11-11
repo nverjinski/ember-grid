@@ -4,10 +4,44 @@ import { createInitializedWorld } from '../simulation/initialize'
 import { TELEMETRY_PROTOCOL_VERSION, type SnapshotMessageV1 } from './protocol'
 import {
   createSnapshotMessageV1,
+  createWorldSnapshotV1,
   serializeSnapshotMessageV1,
 } from './snapshot'
 
 describe('protocol v1 snapshots', () => {
+  it('creates a JSON-safe world snapshot detached at every mutable boundary', () => {
+    const world = createInitializedWorld({
+      width: 2,
+      height: 2,
+      seed: 42,
+      sensorCount: 2,
+    })
+    const originalWidth = world.dimensions.width
+    const originalFuelBed = world.terrain.fuelBedCode[0]
+    const originalFuel = world.current.surfaceFuelLoadGramsPerSquareMeter[0]
+    const originalSensorStatus = world.sensors[0].status
+    const originalWindDirection = world.wind.direction
+
+    const snapshot = createWorldSnapshotV1(world)
+
+    world.dimensions.width = 1
+    world.terrain.fuelBedCode[0] = 3
+    world.current.surfaceFuelLoadGramsPerSquareMeter[0] = 0
+    world.sensors[0].status = 'failed'
+    world.wind.direction = 'south'
+
+    expect(snapshot.dimensions.width).toBe(originalWidth)
+    expect(snapshot.fuelBedCodeByCellId[0]).toBe(originalFuelBed)
+    expect(snapshot.cells[0].surfaceFuelLoadGramsPerSquareMeter).toBe(
+      originalFuel,
+    )
+    expect(snapshot.sensors[0].status).toBe(originalSensorStatus)
+    expect(snapshot.wind.direction).toBe(originalWindDirection)
+    expect(Array.isArray(snapshot.fuelBedCodeByCellId)).toBe(true)
+    expect(Array.isArray(snapshot.cells)).toBe(true)
+    expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot)
+  })
+
   it('copies authoritative world state into a JSON-safe snapshot', () => {
     const world = createInitializedWorld({
       width: 2,

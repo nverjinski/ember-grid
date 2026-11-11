@@ -1,15 +1,45 @@
-import { checksumWorld } from '../simulation/checksum'
-import type { WorldState } from '../simulation/types'
+import { checksumWorld } from "../simulation/checksum";
+import type { WorldState } from "../simulation/types";
 import {
   assertValidMessageMetadataV1,
   type TelemetryMessageMetadataV1,
-} from './messageMetadata'
+} from "./messageMetadata";
 import {
   TELEMETRY_PROTOCOL_VERSION,
   type SnapshotMessageV1,
-} from './protocol'
+  type WorldSnapshotV1,
+} from "./protocol";
 
-export type SnapshotMessageMetadataV1 = TelemetryMessageMetadataV1
+export type SnapshotMessageMetadataV1 = TelemetryMessageMetadataV1;
+
+/**
+ * Copies authoritative world state into a detached, JSON-safe protocol value.
+ */
+export function createWorldSnapshotV1(world: WorldState): WorldSnapshotV1 {
+  return {
+    dimensions: {
+      height: world.dimensions.height,
+      width: world.dimensions.width,
+    },
+    fuelBedCodeByCellId: Array.from(world.terrain.fuelBedCode),
+    cells: Array.from({ length: world.cellCount }, (_, cellId) => ({
+      cellId,
+      surfaceFuelLoadGramsPerSquareMeter:
+        world.current.surfaceFuelLoadGramsPerSquareMeter[cellId],
+      fuelMoisturePermille: world.current.fuelMoisturePermille[cellId],
+      temperatureDeciCelsius: world.current.temperatureDeciCelsius[cellId],
+      smokeDensityIndex: world.current.smokeDensityIndex[cellId],
+      fireIntensityIndex: world.current.fireIntensityIndex[cellId],
+    })),
+    sensors: Array.from({ length: world.sensors.length }, (_, sensorId) => ({
+      sensorId: world.sensors[sensorId].id,
+      cellId: world.sensors[sensorId].cellId,
+      kind: world.sensors[sensorId].kind,
+      status: world.sensors[sensorId].status,
+    })),
+    wind: { ...world.wind },
+  };
+}
 
 /**
  * Copies authoritative simulation state into a JSON-safe protocol snapshot.
@@ -19,17 +49,7 @@ export function createSnapshotMessageV1(
   world: WorldState,
   metadata: SnapshotMessageMetadataV1,
 ): SnapshotMessageV1 {
-  assertValidMessageMetadataV1(metadata)
-
-  const cells = Array.from({ length: world.cellCount }, (_, cellId) => ({
-    cellId,
-    surfaceFuelLoadGramsPerSquareMeter:
-      world.current.surfaceFuelLoadGramsPerSquareMeter[cellId],
-    fuelMoisturePermille: world.current.fuelMoisturePermille[cellId],
-    temperatureDeciCelsius: world.current.temperatureDeciCelsius[cellId],
-    smokeDensityIndex: world.current.smokeDensityIndex[cellId],
-    fireIntensityIndex: world.current.fireIntensityIndex[cellId],
-  }))
+  assertValidMessageMetadataV1(metadata);
 
   return {
     protocolVersion: TELEMETRY_PROTOCOL_VERSION,
@@ -38,32 +58,16 @@ export function createSnapshotMessageV1(
     scheduledDeliveryOffsetMicroseconds:
       metadata.scheduledDeliveryOffsetMicroseconds,
     authoritativeWorldChecksum: checksumWorld(world),
-    kind: 'snapshot',
-    snapshot: {
-      dimensions: {
-        width: world.dimensions.width,
-        height: world.dimensions.height,
-      },
-      fuelBedCodeByCellId: Array.from(world.terrain.fuelBedCode),
-      cells,
-      sensors: world.sensors.map((sensor) => ({
-        sensorId: sensor.id,
-        cellId: sensor.cellId,
-        kind: sensor.kind,
-        status: sensor.status,
-      })),
-      wind: { ...world.wind },
-    },
-  }
+    kind: "snapshot",
+    snapshot: createWorldSnapshotV1(world),
+  };
 }
 
 /**
  * Serializes every field in a prescribed order instead of relying on the
  * insertion history of objects supplied by a caller.
  */
-export function serializeSnapshotMessageV1(
-  message: SnapshotMessageV1,
-): string {
+export function serializeSnapshotMessageV1(message: SnapshotMessageV1): string {
   return JSON.stringify({
     protocolVersion: message.protocolVersion,
     kind: message.kind,
@@ -99,6 +103,5 @@ export function serializeSnapshotMessageV1(
           message.snapshot.wind.speedCentimetersPerSecond,
       },
     },
-  })
+  });
 }
-
