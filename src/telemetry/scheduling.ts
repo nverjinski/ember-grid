@@ -1,7 +1,6 @@
 import { assertValidMessageMetadataV1 } from "./messageMetadata";
 import { TELEMETRY_PROTOCOL_VERSION, type DeltaMessageV1 } from "./protocol";
-import { createTickBatchesV1, type TickBatchV1 } from "./batching";
-import type { TickChangeSetV1 } from "./delta";
+import type { TickBatchV1 } from "./batching";
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
@@ -9,10 +8,6 @@ export interface TickBatchScheduleV1 {
   firstSequenceNumber: number;
   firstScheduledDeliveryOffsetMicroseconds: number;
   messagesPerSecond: number;
-}
-
-export interface TickMessageScheduleV1 extends TickBatchScheduleV1 {
-  updatesPerMessage: number;
 }
 
 function scheduledDeliveryOffsetAt(
@@ -82,14 +77,3 @@ export function scheduleTickBatchesV1(
   }));
 }
 
-/** Runs one tick change set through partitioning and message scheduling. */
-export function createScheduledTickMessagesV1(
-  changeSet: TickChangeSetV1,
-  schedule: TickMessageScheduleV1,
-): DeltaMessageV1[] {
-  const tickBatches = createTickBatchesV1(
-    changeSet,
-    schedule.updatesPerMessage,
-  );
-  return scheduleTickBatchesV1(tickBatches, schedule);
-}

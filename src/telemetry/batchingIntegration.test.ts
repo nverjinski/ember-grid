@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createTickBatchesV1 } from "./batching";
 import type { TickChangeSetV1 } from "./delta";
 import { serializeDeltaMessageV1 } from "./deltaSerialization";
-import { createScheduledTickMessagesV1 } from "./scheduling";
+import { scheduleTickBatchesV1 } from "./scheduling";
 
 function createChangeSet(updateCount: number): TickChangeSetV1 {
   return {
@@ -18,16 +19,22 @@ function createChangeSet(updateCount: number): TickChangeSetV1 {
 }
 
 const SCHEDULE = {
-  updatesPerMessage: 2,
   firstSequenceNumber: 20,
   firstScheduledDeliveryOffsetMicroseconds: 1_000,
   messagesPerSecond: 5_000,
 } as const;
 
+function createScheduledMessages(changeSet: TickChangeSetV1) {
+  return scheduleTickBatchesV1(
+    createTickBatchesV1(changeSet, 2),
+    SCHEDULE,
+  );
+}
+
 describe("tick batching pipeline invariants", () => {
   it("preserves every update exactly once and in its original order", () => {
     const changeSet = createChangeSet(5);
-    const messages = createScheduledTickMessagesV1(changeSet, SCHEDULE);
+    const messages = createScheduledMessages(changeSet);
 
     expect(messages.flatMap(({ updates }) => updates)).toEqual(
       changeSet.updates,
@@ -49,10 +56,7 @@ describe("tick batching pipeline invariants", () => {
   });
 
   it("represents an unchanged tick as one complete empty message", () => {
-    const messages = createScheduledTickMessagesV1(
-      createChangeSet(0),
-      SCHEDULE,
-    );
+    const messages = createScheduledMessages(createChangeSet(0));
 
     expect(messages).toHaveLength(1);
     expect(messages[0]).toMatchObject({
@@ -66,8 +70,8 @@ describe("tick batching pipeline invariants", () => {
 
   it("separates message count from update count and repeats byte-for-byte", () => {
     const changeSet = createChangeSet(5);
-    const first = createScheduledTickMessagesV1(changeSet, SCHEDULE);
-    const second = createScheduledTickMessagesV1(changeSet, SCHEDULE);
+    const first = createScheduledMessages(changeSet);
+    const second = createScheduledMessages(changeSet);
 
     expect(first).toHaveLength(3);
     expect(

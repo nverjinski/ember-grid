@@ -2,12 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { TelemetryMessageV1 } from "./protocol";
 import { serializeDeltaMessageV1 } from "./deltaSerialization";
 import { serializeSnapshotMessageV1 } from "./snapshot";
-import {
-  createSerializedTraceV1,
-  type TraceGenerationConfigV1,
-} from "./trace";
+import { createTrace, type TraceConfig } from "./trace";
 
-const TRACE_CONFIG: TraceGenerationConfigV1 = {
+const TRACE_CONFIG: TraceConfig = {
   initialization: {
     width: 4,
     height: 4,
@@ -30,9 +27,9 @@ const TRACE_CONFIG: TraceGenerationConfigV1 = {
 
 describe("serialized telemetry traces", () => {
   it("prepends one snapshot and globally schedules every delta batch", () => {
-    const { entries } = createSerializedTraceV1(TRACE_CONFIG);
-    const messages = entries.map(({ serializedMessage }) =>
-      JSON.parse(serializedMessage) as TelemetryMessageV1,
+    const trace = createTrace(TRACE_CONFIG);
+    const messages = trace.map(({ json }) =>
+      JSON.parse(json) as TelemetryMessageV1,
     );
 
     expect(messages[0]).toMatchObject({
@@ -42,13 +39,13 @@ describe("serialized telemetry traces", () => {
     });
     expect(messages.slice(1).every(({ kind }) => kind === "delta")).toBe(true);
 
-    const deltaEntries = entries.slice(1);
-    expect(deltaEntries.map(({ sequenceNumber }) => sequenceNumber)).toEqual(
+    const deltaEntries = trace.slice(1);
+    expect(messages.slice(1).map(({ sequenceNumber }) => sequenceNumber)).toEqual(
       deltaEntries.map((_, index) => index + 1),
     );
     expect(
-      deltaEntries.map(({ scheduledDeliveryOffsetMicroseconds }) =>
-        scheduledDeliveryOffsetMicroseconds,
+      deltaEntries.map(
+        ({ scheduledOffsetMicroseconds }) => scheduledOffsetMicroseconds,
       ),
     ).toEqual(
       deltaEntries.map((_, index) =>
@@ -58,31 +55,30 @@ describe("serialized telemetry traces", () => {
   });
 
   it("stores canonical JSON whose routing metadata matches its trace entry", () => {
-    const { entries } = createSerializedTraceV1(TRACE_CONFIG);
+    const trace = createTrace(TRACE_CONFIG);
 
-    for (const entry of entries) {
-      const message = JSON.parse(entry.serializedMessage) as TelemetryMessageV1;
+    for (const entry of trace) {
+      const message = JSON.parse(entry.json) as TelemetryMessageV1;
       const canonical =
         message.kind === "snapshot"
           ? serializeSnapshotMessageV1(message)
           : serializeDeltaMessageV1(message);
 
-      expect(entry.serializedMessage).toBe(canonical);
-      expect(entry.sequenceNumber).toBe(message.sequenceNumber);
-      expect(entry.scheduledDeliveryOffsetMicroseconds).toBe(
+      expect(entry.json).toBe(canonical);
+      expect(entry.scheduledOffsetMicroseconds).toBe(
         message.scheduledDeliveryOffsetMicroseconds,
       );
     }
   });
 
   it("supports a canonical snapshot-only trace", () => {
-    const { entries } = createSerializedTraceV1({
+    const trace = createTrace({
       ...TRACE_CONFIG,
       tickCount: 0,
     });
 
-    expect(entries).toHaveLength(1);
-    expect(JSON.parse(entries[0].serializedMessage)).toMatchObject({
+    expect(trace).toHaveLength(1);
+    expect(JSON.parse(trace[0].json)).toMatchObject({
       kind: "snapshot",
       sequenceNumber: 0,
       scheduledDeliveryOffsetMicroseconds: 0,
@@ -91,14 +87,14 @@ describe("serialized telemetry traces", () => {
 
   it("rejects an invalid message rate before generating the trace", () => {
     expect(() =>
-      createSerializedTraceV1({
+      createTrace({
         ...TRACE_CONFIG,
         tickCount: 0,
         messagesPerSecond: 0,
       }),
     ).toThrow(RangeError);
     expect(() =>
-      createSerializedTraceV1({
+      createTrace({
         ...TRACE_CONFIG,
         messagesPerSecond: 1.5,
       }),

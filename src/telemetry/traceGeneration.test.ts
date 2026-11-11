@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import { Simulation } from "../simulation/simulation";
 import { createTickBatchesV1 } from "./batching";
 import { createTickChangeSetV1 } from "./delta";
+import type { DeltaMessageV1, TelemetryMessageV1 } from "./protocol";
 import { createWorldSnapshotV1 } from "./snapshot";
-import {
-  recordTraceBatchesV1,
-  type TraceRecordingConfigV1,
-} from "./traceRecording";
+import { createTrace, type TraceConfig } from "./trace";
 
-const BASE_CONFIG: TraceRecordingConfigV1 = {
+const BASE_CONFIG: TraceConfig = {
   initialization: {
     width: 4,
     height: 4,
@@ -26,33 +24,28 @@ const BASE_CONFIG: TraceRecordingConfigV1 = {
   ],
   tickCount: 3,
   updatesPerMessage: 2,
+  messagesPerSecond: 3_000,
 };
 
-describe("finite trace batch recording", () => {
-  it("records the initial snapshot and every configured simulation tick", () => {
-    const recording = recordTraceBatchesV1(BASE_CONFIG);
+function parseTrace(config: TraceConfig): TelemetryMessageV1[] {
+  return createTrace(config).map(
+    ({ json }) => JSON.parse(json) as TelemetryMessageV1,
+  );
+}
 
-    expect(recording.initialSnapshot).toMatchObject({
+describe("finite trace generation", () => {
+  it("records the initial snapshot and every configured simulation tick", () => {
+    const messages = parseTrace(BASE_CONFIG);
+
+    expect(messages[0]).toMatchObject({
       kind: "snapshot",
       sequenceNumber: 0,
       simulationTick: 0,
       scheduledDeliveryOffsetMicroseconds: 0,
     });
-
-    const recordedTicks = [
-      ...new Set(recording.tickBatches.map(({ simulationTick }) => simulationTick)),
-    ];
-    expect(recordedTicks).toEqual([1, 2, 3]);
-
-    for (const tick of recordedTicks) {
-      const batches = recording.tickBatches.filter(
-        ({ simulationTick }) => simulationTick === tick,
-      );
-      expect(batches.at(-1)?.tickBatchIndex).toBe(batches.length - 1);
-      expect(batches.every(({ tickBatchCount }) => tickBatchCount === batches.length)).toBe(
-        true,
-      );
-    }
+    expect([
+      ...new Set(messages.slice(1).map(({ simulationTick }) => simulationTick)),
+    ]).toEqual([1, 2, 3]);
   });
 
   it("compares each tick with the immediately preceding detached state", () => {
@@ -75,30 +68,40 @@ describe("finite trace batch recording", () => {
       previousSnapshot = createWorldSnapshotV1(simulation.world);
     }
 
-    expect(recordTraceBatchesV1(BASE_CONFIG).tickBatches).toEqual(
-      expectedBatches,
+    const actualBatches = (parseTrace(BASE_CONFIG).slice(1) as DeltaMessageV1[]).map(
+      ({
+        simulationTick,
+        authoritativeWorldChecksum,
+        tickBatchIndex,
+        tickBatchCount,
+        updates,
+      }) => ({
+        simulationTick,
+        authoritativeWorldChecksum,
+        tickBatchIndex,
+        tickBatchCount,
+        updates,
+      }),
     );
+    expect(actualBatches).toEqual(expectedBatches);
   });
 
   it("allows a finite snapshot-only trace", () => {
-    const recording = recordTraceBatchesV1({
-      ...BASE_CONFIG,
-      tickCount: 0,
-    });
+    const messages = parseTrace({ ...BASE_CONFIG, tickCount: 0 });
 
-    expect(recording.initialSnapshot.simulationTick).toBe(0);
-    expect(recording.tickBatches).toEqual([]);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ kind: "snapshot", simulationTick: 0 });
   });
 
-  it("rejects invalid finite bounds even when no ticks would be recorded", () => {
+  it("rejects invalid finite bounds even for a snapshot-only trace", () => {
+    expect(() => createTrace({ ...BASE_CONFIG, tickCount: -1 })).toThrow(
+      RangeError,
+    );
+    expect(() => createTrace({ ...BASE_CONFIG, tickCount: 1.5 })).toThrow(
+      RangeError,
+    );
     expect(() =>
-      recordTraceBatchesV1({ ...BASE_CONFIG, tickCount: -1 }),
-    ).toThrow(RangeError);
-    expect(() =>
-      recordTraceBatchesV1({ ...BASE_CONFIG, tickCount: 1.5 }),
-    ).toThrow(RangeError);
-    expect(() =>
-      recordTraceBatchesV1({
+      createTrace({
         ...BASE_CONFIG,
         tickCount: 0,
         updatesPerMessage: 0,

@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { DeltaMessageV1, TelemetryMessageV1 } from "./protocol";
 import {
-  createSerializedTraceV1,
-  type TraceGenerationConfigV1,
-} from "./trace";
-import {
+  createTrace,
   MAX_TRACE_CELL_TICKS,
   MAX_TRACE_GRID_CELLS,
   MAX_TRACE_MESSAGES,
   MAX_TRACE_TICKS,
-  recordTraceBatchesV1,
-} from "./traceRecording";
+  type TraceConfig,
+} from "./trace";
 
-function createConfig(seed: number): TraceGenerationConfigV1 {
+function createConfig(seed: number): TraceConfig {
   return {
     initialization: {
       width: 8,
@@ -35,10 +32,9 @@ function createConfig(seed: number): TraceGenerationConfigV1 {
   };
 }
 
-function parseTrace(config: TraceGenerationConfigV1): TelemetryMessageV1[] {
-  return createSerializedTraceV1(config).entries.map(
-    ({ serializedMessage }) =>
-      JSON.parse(serializedMessage) as TelemetryMessageV1,
+function parseTrace(config: TraceConfig): TelemetryMessageV1[] {
+  return createTrace(config).map(
+    ({ json }) => JSON.parse(json) as TelemetryMessageV1,
   );
 }
 
@@ -46,20 +42,16 @@ describe("finite trace determinism", () => {
   it("repeats byte-for-byte for each of two seeds", () => {
     for (const seed of [42, 99]) {
       const config = createConfig(seed);
-      expect(createSerializedTraceV1(config)).toEqual(
-        createSerializedTraceV1(config),
-      );
+      expect(createTrace(config)).toEqual(createTrace(config));
     }
   });
 
   it("distinguishes traces generated from different seeds", () => {
-    const first = createSerializedTraceV1(createConfig(42));
-    const second = createSerializedTraceV1(createConfig(99));
+    const first = createTrace(createConfig(42));
+    const second = createTrace(createConfig(99));
 
-    expect(
-      first.entries.map(({ serializedMessage }) => serializedMessage),
-    ).not.toEqual(
-      second.entries.map(({ serializedMessage }) => serializedMessage),
+    expect(first.map(({ json }) => json)).not.toEqual(
+      second.map(({ json }) => json),
     );
   });
 
@@ -108,7 +100,7 @@ describe("finite trace resource bounds", () => {
     const base = createConfig(42);
 
     expect(() =>
-      recordTraceBatchesV1({
+      createTrace({
         ...base,
         initialization: {
           ...base.initialization,
@@ -118,10 +110,10 @@ describe("finite trace resource bounds", () => {
       }),
     ).toThrow(`${MAX_TRACE_GRID_CELLS}`);
     expect(() =>
-      recordTraceBatchesV1({ ...base, tickCount: MAX_TRACE_TICKS + 1 }),
+      createTrace({ ...base, tickCount: MAX_TRACE_TICKS + 1 }),
     ).toThrow(`${MAX_TRACE_TICKS}`);
     expect(() =>
-      recordTraceBatchesV1({
+      createTrace({
         ...base,
         initialization: {
           ...base.initialization,
@@ -137,7 +129,7 @@ describe("finite trace resource bounds", () => {
     const base = createConfig(42);
 
     expect(() =>
-      recordTraceBatchesV1({
+      createTrace({
         ...base,
         initialization: {
           width: 256,
