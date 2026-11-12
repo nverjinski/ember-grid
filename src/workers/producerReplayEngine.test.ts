@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TraceEntry } from "../telemetry/trace";
 import type { ProducerWorkerEvent } from "./producerProtocol";
-import { ProducerReplayEngine } from "./producerReplayEngine";
+import {
+  ProducerReplayEngine,
+  type ProducerReplayRuntime,
+} from "./producerReplayEngine";
 
 const TRACE: readonly TraceEntry[] = [
   { scheduledOffsetMicroseconds: 0, json: '{"kind":"snapshot"}' },
@@ -12,7 +15,16 @@ const TRACE: readonly TraceEntry[] = [
 function createEngine() {
   const events: ProducerWorkerEvent[] = [];
   const emit = vi.fn((event: ProducerWorkerEvent) => events.push(event));
-  return { engine: new ProducerReplayEngine(emit), emit, events };
+  const runtime: ProducerReplayRuntime = {
+    nowMilliseconds: () => 0,
+    schedule: () => 1,
+    cancel: () => undefined,
+  };
+  return {
+    engine: new ProducerReplayEngine(emit, runtime),
+    emit,
+    events,
+  };
 }
 
 describe("producer replay lifecycle", () => {
